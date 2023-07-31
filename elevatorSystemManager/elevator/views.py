@@ -16,77 +16,94 @@ def initializeElevatorSystem(request):
     """ initialising new elevator
       param - numberOfElevator(taking integer parameter number of elevator)
      """
-    if request.method == 'POST':
-        body = request.body
-        stream = io.BytesIO(body)
-        pythonData = JSONParser().parse(stream)
-        getElevatorNumber = pythonData['numberOfElevator']
-        numberOfElevatorsExist = Elevator.objects.all()
-        totalInitializeElevators = getElevatorNumber - len(numberOfElevatorsExist)
-        if totalInitializeElevators <= 0:
-            return JsonResponse({"message": "invalid elevator number or same elevator already exist"})
-        numbersOfElevators = [Elevator(lift_number=elevatorSequence) for elevatorSequence in
-                              range(len(numberOfElevatorsExist) + 1, getElevatorNumber + 1)]
-        try:
-            data = Elevator.objects.bulk_create(numbersOfElevators)
-            if data:
-                return JsonResponse({"message": 'initialize new elevators'})
-        except Exception as error:
-            return JsonResponse({"message": 'error initialize new elevators ' + str(error)})
-        return JsonResponse({'message': 'error during process request'})
-    return JsonResponse({"message": 'request is invalid'})
+    try:
+        if request.method == 'POST':
+            body = request.body
+            stream = io.BytesIO(body)
+            pythonData = JSONParser().parse(stream)
+            getElevatorNumber = pythonData['numberOfElevator']
+            numberOfElevatorsExist = Elevator.objects.all()
+            totalInitializeElevators = getElevatorNumber - len(numberOfElevatorsExist)
+            if totalInitializeElevators <= 0:
+                return JsonResponse({"message": "invalid elevator number or same elevator already exist"})
+            numbersOfElevators = [Elevator(lift_number=elevatorSequence) for elevatorSequence in
+                                  range(len(numberOfElevatorsExist) + 1, getElevatorNumber + 1)]
+            try:
+                data = Elevator.objects.bulk_create(numbersOfElevators)
+                if data:
+                    return JsonResponse({"message": 'initialize new elevators'})
+            except Exception as error:
+                return JsonResponse({"message": 'error initialize new elevators ' + str(error)})
+            return JsonResponse({'message': 'error during process request'})
+        return JsonResponse({"message": 'request is invalid'})
+    except Exception as error:
+        print(error)
+        return JsonResponse({"message": " error occurred during processing request " + str(error.args)})
 
 
 @csrf_exempt
 def getElevatorsUserRequest(request):
     """ getting user floor request for particular elevator """
-    if request.method == 'POST':
-        body = request.body
-        stream = io.BytesIO(body)
-        pythonData = JSONParser().parse(stream)
-        getElevatorNumber = pythonData['elevatorID']
-        cursor = connection.cursor()
-        SQL = """ 
-                select lift_number, is_operational, is_maintenance, is_available, current_floor, is_upward, moving_up, 
-                       id, floor_number, is_door_close_open, archived_at, lift_id
-                from elevator_elevator e
-                         join elevator_floorrequest f on e.lift_number = f.lift_id
-                
-                where e.lift_number = %s
-                
-              """
-        cursor.execute(SQL, (getElevatorNumber,))
-        elevatorDetails = cursor.fetchall()
-        columnName = ['lift_number', 'is_operational', 'is_maintenance', 'is_available', 'current_floor', 'is_upward'
-            , 'moving_up', 'floor_number', 'is_door_close_open', 'archived_at', 'lift_id']
-        elevatorMapDetails = [dict(zip(columnName, elevatorDetail)) for elevatorDetail in elevatorDetails]
-        print(elevatorMapDetails)
-        serializer = elevatorAndFloorSerializedData(data=elevatorMapDetails, many=True)
-        serializer.is_valid()
-        return JsonResponse(serializer.data, safe=False)
+    try:
+        if request.method == 'POST':
+            body = request.body
+            stream = io.BytesIO(body)
+            pythonData = JSONParser().parse(stream)
+            getElevatorNumber = pythonData['elevatorID']
+            cursor = connection.cursor()
+            SQL = """ 
+                    select lift_number, is_operational, is_maintenance, is_available, current_floor, is_upward, moving_up, 
+                           id, floor_number, is_door_close_open, archived_at, lift_id
+                    from elevator_elevator e
+                             join elevator_floorrequest f on e.lift_number = f.lift_id
+                    
+                    where e.lift_number = %s
+                    
+                  """
+            cursor.execute(SQL, (getElevatorNumber,))
+            elevatorDetails = cursor.fetchall()
+            columnName = ['lift_number', 'is_operational', 'is_maintenance', 'is_available', 'current_floor',
+                          'is_upward'
+                , 'moving_up', 'floor_number', 'is_door_close_open', 'archived_at', 'lift_id']
+            elevatorMapDetails = [dict(zip(columnName, elevatorDetail)) for elevatorDetail in elevatorDetails]
+            print(elevatorMapDetails)
+            serializer = elevatorAndFloorSerializedData(data=elevatorMapDetails, many=True)
+            serializer.is_valid()
+            return JsonResponse(serializer.data, safe=False)
+        else:
+            return JsonResponse({"message": " invalid method " + str(request.method)})
+    except Exception as error:
+        print(error)
+        return JsonResponse({"message": " error occurred during processing request " + str(error.args)})
 
 
 @csrf_exempt
 def getLiftIsMovingOrNot(request):
     """ getting details of a particular elevator it is moving or not or in rest """
-    if request.method == 'POST':
-        body = request.body
-        stream = io.BytesIO(body)
-        pythonData = JSONParser().parse(stream)
-        getElevatorNumber = pythonData['elevatorID']
-        # elevatorsMovingOrDownDetails = Elevator.objects.filter(lift_number=getElevatorNumber)
-        cursor = connection.cursor()
-        SQL = """ 
-                  select lift_number, moving_up from elevator_elevator where lift_number=%s
-              """
-        cursor.execute(SQL, (getElevatorNumber,))
-        elevatorDetails = cursor.fetchall()
-        columnName = ['lift_number', 'moving_up']
-        elevatorMapDetails = [dict(zip(columnName, elevatorDetail)) for elevatorDetail in elevatorDetails]
-        serializer = elevatorMovingUpOrDownSerializers(data=elevatorMapDetails, many=True)
-        if serializer.is_valid():
-            return JsonResponse(serializer.data, safe=False)
-        return JsonResponse({"message": 'not found valid data' + str(serializer.error_messages)})
+    try:
+        if request.method == 'POST':
+            body = request.body
+            stream = io.BytesIO(body)
+            pythonData = JSONParser().parse(stream)
+            getElevatorNumber = pythonData['elevatorID']
+            # elevatorsMovingOrDownDetails = Elevator.objects.filter(lift_number=getElevatorNumber)
+            cursor = connection.cursor()
+            SQL = """ 
+                      select lift_number, moving_up from elevator_elevator where lift_number=%s
+                  """
+            cursor.execute(SQL, (getElevatorNumber,))
+            elevatorDetails = cursor.fetchall()
+            columnName = ['lift_number', 'moving_up']
+            elevatorMapDetails = [dict(zip(columnName, elevatorDetail)) for elevatorDetail in elevatorDetails]
+            serializer = elevatorMovingUpOrDownSerializers(data=elevatorMapDetails, many=True)
+            if serializer.is_valid():
+                return JsonResponse(serializer.data, safe=False)
+            return JsonResponse({"message": 'not found valid data' + str(serializer.error_messages)})
+        else:
+            return JsonResponse({"message": " invalid method " + str(request.method)})
+    except Exception as error:
+        print(error)
+        return JsonResponse({"message": " error occurred during processing request " + str(error.args)})
 
 
 @csrf_exempt
@@ -95,26 +112,32 @@ def getElevatorDoorStatus(request):
         0 - door is closed
         1- door is open
     """
-    if request.method == 'POST':
-        body = request.body
-        stream = io.BytesIO(body)
-        pythonData = JSONParser().parse(stream)
-        getElevatorNumber = pythonData['elevatorID']
-        elevatorsMovingOrDownDetails = Elevator.objects.filter(lift_number=getElevatorNumber)
-        cursor = connection.cursor()
-        SQL = """ 
-                  select lift_number,is_door_close_open from elevator_elevator where lift_number=%s
-              """
-        cursor.execute(SQL, (getElevatorNumber,))
-        elevatorDetails = cursor.fetchall()
-        print(elevatorDetails)
-        connection.close()
-        columnName = ['lift_number', 'is_door_close_open']
-        elevatorMapDetails = [dict(zip(columnName, elevatorDetail)) for elevatorDetail in elevatorDetails]
-        serializer = elevatorDoorStatusSerializers(data=elevatorMapDetails, many=True)
-        if serializer.is_valid():
-            return JsonResponse(serializer.data, safe=False)
-        return JsonResponse({"message": 'not found valid data' + str(serializer.error_messages)})
+    try:
+        if request.method == 'POST':
+            body = request.body
+            stream = io.BytesIO(body)
+            pythonData = JSONParser().parse(stream)
+            getElevatorNumber = pythonData['elevatorID']
+            elevatorsMovingOrDownDetails = Elevator.objects.filter(lift_number=getElevatorNumber)
+            cursor = connection.cursor()
+            SQL = """ 
+                      select lift_number,is_door_close_open from elevator_elevator where lift_number=%s
+                  """
+            cursor.execute(SQL, (getElevatorNumber,))
+            elevatorDetails = cursor.fetchall()
+            print(elevatorDetails)
+            connection.close()
+            columnName = ['lift_number', 'is_door_close_open']
+            elevatorMapDetails = [dict(zip(columnName, elevatorDetail)) for elevatorDetail in elevatorDetails]
+            serializer = elevatorDoorStatusSerializers(data=elevatorMapDetails, many=True)
+            if serializer.is_valid():
+                return JsonResponse(serializer.data, safe=False)
+            return JsonResponse({"message": 'not found valid data' + str(serializer.error_messages)})
+        else:
+            return JsonResponse({"message": " invalid method " + str(request.method)})
+    except Exception as error:
+        print(error)
+        return JsonResponse({"message": " error occurred during processing request " + str(error.args)})
 
 
 @csrf_exempt
@@ -139,6 +162,8 @@ def getElevatorNextDestination(request):
                 if floorStatus > -4:
                     floorStatus -= 1
             return JsonResponse(f"next floor destination is : {floorStatus}")
+        else:
+            return JsonResponse({"message": " invalid method " + str(request.method)})
 
     except Exception as error:
         return JsonResponse({"message": 'error to finding next request' + str(error.args)})
@@ -154,29 +179,35 @@ def markElevatorInMaintenance(request):
                              1 or True - under maintenance
 
     """
-    if request.method == 'POST':
-        body = request.body
-        stream = io.BytesIO(body)
-        pythonData = JSONParser().parse(stream)
-        getElevatorNumber = pythonData['elevatorID']
-        isMaintenance = pythonData['isMaintenance']
-        cursor = connection.cursor()
-        SQL = """ 
-                  update  elevator_elevator set is_maintenance=%s where lift_number=%s
-              """
-        cursor.execute(SQL, (isMaintenance, getElevatorNumber))
-        connection.commit()
-        SQL = """ select lift_number, is_maintenance from elevator_elevator where lift_number=%s"""
-        cursor.execute(SQL, (getElevatorNumber,))
-        elevatorDetails = cursor.fetchall()
-        print(elevatorDetails)
-        connection.close()
-        columnName = ['lift_number', 'is_maintenance']
-        elevatorMapDetails = [dict(zip(columnName, elevatorDetail)) for elevatorDetail in elevatorDetails]
-        serializer = elevatorIsMaintenanceStatusSerializers(data=elevatorMapDetails, many=True)
-        if serializer.is_valid():
-            return JsonResponse(serializer.data, safe=False)
-        return JsonResponse({"message": 'not found valid data' + str(serializer.error_messages)})
+    try:
+        if request.method == 'POST':
+            body = request.body
+            stream = io.BytesIO(body)
+            pythonData = JSONParser().parse(stream)
+            getElevatorNumber = pythonData['elevatorID']
+            isMaintenance = pythonData['isMaintenance']
+            cursor = connection.cursor()
+            SQL = """ 
+                      update  elevator_elevator set is_maintenance=%s where lift_number=%s
+                  """
+            cursor.execute(SQL, (isMaintenance, getElevatorNumber))
+            connection.commit()
+            SQL = """ select lift_number, is_maintenance from elevator_elevator where lift_number=%s"""
+            cursor.execute(SQL, (getElevatorNumber,))
+            elevatorDetails = cursor.fetchall()
+            print(elevatorDetails)
+            connection.close()
+            columnName = ['lift_number', 'is_maintenance']
+            elevatorMapDetails = [dict(zip(columnName, elevatorDetail)) for elevatorDetail in elevatorDetails]
+            serializer = elevatorIsMaintenanceStatusSerializers(data=elevatorMapDetails, many=True)
+            if serializer.is_valid():
+                return JsonResponse(serializer.data, safe=False)
+            return JsonResponse({"message": 'not found valid data' + str(serializer.error_messages)})
+        else:
+            return JsonResponse({"message": " invalid method " + str(request.method)})
+    except Exception as error:
+        print(error)
+        return JsonResponse({"message": " error occurred during processing request " + str(error.args)})
 
 
 def commonFunctionForGettingAllDetailsOfElevators():
@@ -275,19 +306,27 @@ def savesUsersRequestForElevator(request):
                             print(
                                 f' error occurred during mapping floor is : {sortedMap[w]} and mapped with this {particularElevator.lift_number} Elevator')
                         break
+        else:
+            return JsonResponse({"message": " invalid method " + str(request.method)})
 
     except Exception as error:
         print(error)
-    return JsonResponse({"message": 'process user request'})
+        return JsonResponse({"message": 'process user request ' + str(error.args)})
 
 
 def runElevators(request):
     """ run all elevator for processing it all their services """
-    if request.method == 'GET':
-        elevatorsDetailsInMap = commonFunctionForGettingAllDetailsOfElevators()
-        if not elevatorsDetailsInMap:
-            return JsonResponse({"message": "no user request is remaining"})
-        elevatorsSystemObject = ElevatorsSystem(elevatorsDetailsInMap)
-        for elevatorsObject in elevatorsSystemObject.elevators:
-            print(elevatorsObject.processRequest())
-        return JsonResponse({'message': 'elevators has been processed their request'})
+    try:
+        if request.method == 'GET':
+            elevatorsDetailsInMap = commonFunctionForGettingAllDetailsOfElevators()
+            if not elevatorsDetailsInMap:
+                return JsonResponse({"message": "no user request is remaining"})
+            elevatorsSystemObject = ElevatorsSystem(elevatorsDetailsInMap)
+            for elevatorsObject in elevatorsSystemObject.elevators:
+                print(elevatorsObject.processRequest())
+            return JsonResponse({'message': 'elevators has been processed their request'})
+        else:
+            return JsonResponse({"message": " invalid method " + str(request.method)})
+    except Exception as error:
+        print(error)
+        return JsonResponse({"message": " error occurred during processing request " + str(error.args)})
